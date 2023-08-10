@@ -15,6 +15,6 @@
     },
     "require-dev": {
         "filp/whoops": "^2.15",
-        "maximebf/debugbar": "1.*"
+        "maximebf/debugbar": "dev-master"
     }
 }
