@@ -372,6 +372,10 @@ class POT
 
         $this->db = new OTS_DB_MySQL($params);
 
+		global $debugBar;
+	    $pdo = new DebugBar\DataCollector\PDO\TraceablePDO($this->db);
+	    $debugBar->addCollector(new DebugBar\DataCollector\PDO\PDOCollector($pdo));
+
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
