@@ -13,8 +13,12 @@ if(!isset($config['installed']) || !$config['installed']) {
 	throw new RuntimeException('MyAAC has not been installed yet or there was error during installation. Please install again.');
 }
 
+use DebugBar\StandardDebugBar;
+
 if(config('env') === 'dev') {
 	require SYSTEM . 'exception.php';
+
+	$debugBar = new StandardDebugBar();
 }
 
 if(empty($config['server_path'])) {

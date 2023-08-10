@@ -35,6 +35,27 @@ require_once SYSTEM . 'hooks.php';
 $hooks = new Hooks();
 $hooks->load();
 
+$hooks->register('debugbar_admin_head_end', HOOK_ADMIN_HEAD_END, function ($params) {
+	global $debugBar;
+
+	if (!isset($debugBar)) {
+		return;
+	}
+
+	$debugBarRenderer = $debugBar->getJavascriptRenderer();
+	echo $debugBarRenderer->renderHead();
+});
+$hooks->register('debugbar_admin_body_end', HOOK_ADMIN_BODY_END, function ($params) {
+	global $debugBar;
+
+	if (!isset($debugBar)) {
+		return;
+	}
+
+	$debugBarRenderer = $debugBar->getJavascriptRenderer();
+	echo $debugBarRenderer->render();
+});
+
 require SYSTEM . 'status.php';
 require SYSTEM . 'login.php';
 require __DIR__ . '/includes/functions.php';
