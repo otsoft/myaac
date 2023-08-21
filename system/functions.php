@@ -9,6 +9,11 @@
  */
 defined('MYAAC') or die('Direct access not allowed!');
 
+use MyAAC\Models\Config;
+use MyAAC\Models\Guild;
+use MyAAC\Models\House;
+use MyAAC\Models\Pages;
+use MyAAC\Models\Player;
 use PHPMailer\PHPMailer\PHPMailer;
 use Twig\Loader\ArrayLoader as Twig_ArrayLoader;
 
@@ -99,15 +104,14 @@ function getMonsterLink($name, $generate = true): string
 
 function getHouseLink($name, $generate = true): string
 {
-	global $db;
-
 	if(is_numeric($name))
 	{
-		$house = $db->query(
-			'SELECT `name` FROM `houses` WHERE `id` = ' . (int)$name);
-		if($house->rowCount() > 0)
-			$name = $house->fetchColumn();
+		$house = House::find(intval($name), ['name']);
+		if ($house) {
+			$name = $house->name;
+		}
 	}
+
 
 	$url = BASE_URL . (setting('core.friendly_urls') ? '' : 'index.php/') . 'houses/' . urlencode($name);
 
@@ -118,10 +122,8 @@ function getHouseLink($name, $generate = true): string
 function getGuildLink($name, $generate = true): string
 {
 	if(is_numeric($name)) {
-		$name = getGuildNameById($name);
-		if ($name === false) {
-			$name = 'Unknown';
-		}
+		$guild = Guild::find(intval($name), ['name']);
+		$name = $guild->name ?? 'Unknown';
 	}
 
 	$url = BASE_URL . (setting('core.friendly_urls') ? '' : 'index.php/') . 'guilds/' . urlencode($name);
@@ -272,13 +274,12 @@ function getForumBoards()
  */
 function fetchDatabaseConfig($name, &$value)
 {
-	global $db;
-
-	$query = $db->query('SELECT `value` FROM `' . TABLE_PREFIX . 'config` WHERE `name` = ' . $db->quote($name));
-	if($query->rowCount() <= 0)
+	$config = Config::select('value')->where('name', '=', $name)->first();
+	if (!$config) {
 		return false;
+	}
 
-	$value = $query->fetchColumn();
+	$value = $config->value;
 	return true;
 }
 
@@ -303,8 +304,7 @@ function getDatabaseConfig($name)
  */
 function registerDatabaseConfig($name, $value)
 {
-	global $db;
-	$db->insert(TABLE_PREFIX . 'config', array('name' => $name, 'value' => $value));
+	Config::create(compact('name', 'value'));
 }
 
 /**
@@ -315,8 +315,9 @@ function registerDatabaseConfig($name, $value)
  */
 function updateDatabaseConfig($name, $value)
 {
-	global $db;
-	$db->update(TABLE_PREFIX . 'config', array('value' => $value), array('name' => $name));
+	Config::where('name', '=', $name)->update([
+		'value' => $value
+	]);
 }
 
 /**
@@ -343,47 +344,55 @@ function encrypt($str)
 //delete player with name
 function delete_player($name)
 {
-	global $db;
-	$player = new OTS_Player();
-	$player->find($name);
-	if($player->isLoaded()) {
-		try { $db->exec("DELETE FROM player_skills WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM guild_invites WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_items WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_depotitems WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_spells WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_storage WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_viplist WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_deaths WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
-		try { $db->exec("DELETE FROM player_deaths WHERE killed_by = '".$player->getId()."';"); } catch(PDOException $error) {}
-		$rank = $player->getRank();
-		if($rank->isLoaded()) {
-			$guild = $rank->getGuild();
-			if($guild->getOwner()->getId() == $player->getId()) {
-				$rank_list = $guild->getGuildRanksList();
-				if(count($rank_list) > 0) {
-					$rank_list->orderBy('level');
-					foreach($rank_list as $rank_in_guild) {
-						$players_with_rank = $rank_in_guild->getPlayersList();
-						$players_with_rank->orderBy('name');
-						$players_with_rank_number = count($players_with_rank);
-						if($players_with_rank_number > 0) {
-							foreach($players_with_rank as $player_in_guild) {
-								$player_in_guild->setRank();
-								$player_in_guild->save();
-							}
-						}
-						$rank_in_guild->delete();
-					}
-					$guild->delete();
-				}
-			}
-		}
-		$player->delete();
-		return true;
+	// DB::beginTransaction();
+	global $capsule;
+	$player = Player::where(compact('name'))->first();
+	if (!$player) {
+		return false;
 	}
 
 	return false;
+	// global $db;
+	// $player = new OTS_Player();
+	// $player->find($name);
+	// if($player->isLoaded()) {
+	// 	try { $db->exec("DELETE FROM player_skills WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM guild_invites WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_items WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_depotitems WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_spells WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_storage WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_viplist WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_deaths WHERE player_id = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	try { $db->exec("DELETE FROM player_deaths WHERE killed_by = '".$player->getId()."';"); } catch(PDOException $error) {}
+	// 	$rank = $player->getRank();
+	// 	if($rank->isLoaded()) {
+	// 		$guild = $rank->getGuild();
+	// 		if($guild->getOwner()->getId() == $player->getId()) {
+	// 			$rank_list = $guild->getGuildRanksList();
+	// 			if(count($rank_list) > 0) {
+	// 				$rank_list->orderBy('level');
+	// 				foreach($rank_list as $rank_in_guild) {
+	// 					$players_with_rank = $rank_in_guild->getPlayersList();
+	// 					$players_with_rank->orderBy('name');
+	// 					$players_with_rank_number = count($players_with_rank);
+	// 					if($players_with_rank_number > 0) {
+	// 						foreach($players_with_rank as $player_in_guild) {
+	// 							$player_in_guild->setRank();
+	// 							$player_in_guild->save();
+	// 						}
+	// 					}
+	// 					$rank_in_guild->delete();
+	// 				}
+	// 				$guild->delete();
+	// 			}
+	// 		}
+	// 	}
+	// 	$player->delete();
+	// 	return true;
+	// }
+
+	// return false;
 }
 
 //delete guild with id
@@ -492,7 +501,7 @@ function template_place_holder($type): string
 function template_header($is_admin = false): string
 {
 	global $title_full, $config, $twig;
-	$charset = isset($config['charset']) ? $config['charset'] : 'utf-8';
+	$charset = $config['charset'] ?? 'utf-8';
 
 	return $twig->render('templates.header.html.twig',
 		[
@@ -1059,26 +1068,38 @@ function getTopPlayers($limit = 5) {
 	}
 
 	if (!isset($players)) {
-		$deleted = 'deleted';
-		if($db->hasColumn('players', 'deletion'))
-			$deleted = 'deletion';
+		$columns = [
+			'id', 'name', 'level', 'vocation', 'experience',
+			'looktype', 'lookhead', 'lookbody', 'looklegs', 'lookfeet'
+		];
 
-		$is_tfs10 = $db->hasTable('players_online');
-		$players = $db->query('SELECT `id`, `name`, `level`, `vocation`, `experience`, `looktype`' . ($db->hasColumn('players', 'lookaddons') ? ', `lookaddons`' : '') . ', `lookhead`, `lookbody`, `looklegs`, `lookfeet`' . ($is_tfs10 ? '' : ', `online`') . ' FROM `players` WHERE `group_id` < ' . setting('core.highscores_groups_hidden') . ' AND `id` NOT IN (' . implode(', ', setting('core.highscores_ids_hidden')) . ') AND `' . $deleted . '` = 0 AND `account_id` != 1 ORDER BY `experience` DESC LIMIT ' . (int)$limit)->fetchAll();
-
-		if($is_tfs10) {
-			foreach($players as &$player) {
-				$query = $db->query('SELECT `player_id` FROM `players_online` WHERE `player_id` = ' . $player['id']);
-				$player['online'] = ($query->rowCount() > 0 ? 1 : 0);
-			}
-			unset($player);
+		if ($db->hasColumn('players', 'lookaddons')) {
+			$columns[] = 'lookaddons';
 		}
 
-		$i = 0;
-		foreach($players as &$player) {
-			$player['rank'] = ++$i;
+		if ($db->hasColumn('players', 'online')) {
+			$columns[] = 'online';
 		}
-		unset($player);
+
+		$players = Player::query()
+			->select($columns)
+			->withOnlineStatus()
+			->notDeleted()
+			->where('group_id', '<', setting('core.highscores_groups_hidden'))
+			->whereNotIn('id', setting('core.highscores_ids_hidden'))
+			->where('account_id', '!=', 1)
+			->orderByDesc('experience')
+			->limit($limit)
+			->get()
+			->map(function ($e, $i) {
+				$row = $e->toArray();
+				$row['online'] = $e->online_status;
+				$row['rank'] = $i + 1;
+
+				unset($row['online_table']);
+
+				return $row;
+			})->toArray();
 
 		if($cache->enabled()) {
 			$cache->set('top_' . $limit . '_level', serialize($players), 120);
@@ -1212,49 +1233,44 @@ function clearCache()
 	return true;
 }
 
-function getCustomPageInfo($page)
+function getCustomPageInfo($name)
 {
-	global $db, $logged_access;
-	$query =
-		$db->query(
-			'SELECT `id`, `title`, `body`, `php`, `hidden`' .
-			' FROM `' . TABLE_PREFIX . 'pages`' .
-			' WHERE `name` LIKE ' . $db->quote($page) . ' AND `hidden` != 1 AND `access` <= ' . $db->quote($logged_access));
-	if($query->rowCount() > 0) // found page
-	{
-		return $query->fetch(PDO::FETCH_ASSOC);
+	global $logged_access;
+	$page = Pages::isPublic()
+		->where('name', 'LIKE', $name)
+		->where('access', '<=', $logged_access)
+		->first();
+
+	if (!$page) {
+		return null;
 	}
 
-	return null;
+	return $page->toArray();
 }
-function getCustomPage($page, &$success): string
+function getCustomPage($name, &$success): string
 {
-	global $db, $twig, $title, $ignore, $logged_access;
+	global $twig, $title, $ignore;
 
 	$success = false;
 	$content = '';
-	$query =
-		$db->query(
-			'SELECT `id`, `title`, `body`, `php`, `hidden`' .
-			' FROM `' . TABLE_PREFIX . 'pages`' .
-			' WHERE `name` LIKE ' . $db->quote($page) . ' AND `hidden` != 1 AND `access` <= ' . $db->quote($logged_access));
-	if($query->rowCount() > 0) // found page
+	$page = getCustomPageInfo($name);
+
+	if($page) // found page
 	{
 		$success = $ignore = true;
-		$query = $query->fetch();
-		$title = $query['title'];
+		$title = $page['title'];
 
-		if($query['php'] == '1') // execute it as php code
+		if($page['php'] == '1') // execute it as php code
 		{
-			$tmp = substr($query['body'], 0, 10);
+			$tmp = substr($page['body'], 0, 10);
 			if(($pos = strpos($tmp, '<?php')) !== false) {
-				$tmp = preg_replace('/<\?php/', '', $query['body'], 1);
+				$tmp = preg_replace('/<\?php/', '', $page['body'], 1);
 			}
 			else if(($pos = strpos($tmp, '<?')) !== false) {
-				$tmp = preg_replace('/<\?/', '', $query['body'], 1);
+				$tmp = preg_replace('/<\?/', '', $page['body'], 1);
 			}
 			else
-				$tmp = $query['body'];
+				$tmp = $page['body'];
 
 			$php_errors = array();
 			function error_handler($errno, $errstr) {
@@ -1282,7 +1298,7 @@ function getCustomPage($page, &$success): string
 			$oldLoader = $twig->getLoader();
 
 			$twig_loader_array = new Twig_ArrayLoader(array(
-				'content.html' => $query['body']
+				'content.html' => $page['body']
 			));
 
 			$twig->setLoader($twig_loader_array);
@@ -1397,39 +1413,42 @@ function getChangelogWhere($v)
 
 	return 'unknown';
 }
-function getPlayerNameByAccount($id)
+
+function getPlayerNameByAccountId($id)
 {
-	global $vowels, $ots, $db;
-	if(is_numeric($id))
-	{
-		$player = new OTS_Player();
-		$player->load($id);
-		if($player->isLoaded())
-			return $player->getName();
-		else
-		{
-			$playerQuery = $db->query('SELECT `id` FROM `players` WHERE `account_id` = ' . $id . ' ORDER BY `lastlogin` DESC LIMIT 1;')->fetch();
+	if (!is_numeric($id)) {
+		return '';
+	}
 
-			$tmp = "*Error*";
-			/*
-			$acco = new OTS_Account();
-			$acco->load($id);
-			if(!$acco->isLoaded())
-				return "Unknown name";
-
-			foreach($acco->getPlayersList() as $p)
-			{
-				$player= new OTS_Player();
-				$player->find($p);*/
-				$player->load($playerQuery['id']);
-				//echo 'id gracza = ' . $p . '<br/>';
-				if($player->isLoaded())
-					$tmp = $player->getName();
-			//	break;
-			//}
-
-			return $tmp;
+	$account = \MyAAC\Models\Account::find(intval($id), ['id']);
+	if ($account) {
+		$player = \MyAAC\Models\Player::where('account_id', $account->id)->orderByDesc('lastlogin')->select('name')->first();
+		if (!$player) {
+			return '';
 		}
+		return $player->name;
+	}
+
+	return '';
+}
+
+function getPlayerNameByAccount($account) {
+	if (is_numeric($account)) {
+		return getPlayerNameByAccountId($account);
+	}
+
+	return '';
+}
+
+function getPlayerNameById($id)
+{
+	if (!is_numeric($id)) {
+		return '';
+	}
+
+	$player = \MyAAC\Models\Player::find((int)$id, ['name']);
+	if ($player) {
+		return $player->name;
 	}
 
 	return '';
@@ -1437,13 +1456,13 @@ function getPlayerNameByAccount($id)
 
 function echo_success($message)
 {
-	echo '<div class="col-12 success mb-2">' . $message . '</div>';
+	echo '<div class="col-12 alert alert-success mb-2">' . $message . '</div>';
 }
 
 function echo_error($message)
 {
 	global $error;
-	echo '<div class="col-12 error mb-2">' . $message . '</div>';
+	echo '<div class="col-12 alert alert-error mb-2">' . $message . '</div>';
 	$error = true;
 }
 
@@ -1584,12 +1603,9 @@ function escapeHtml($html) {
 
 function getGuildNameById($id)
 {
-	global $db;
-
-	$guild = $db->query('SELECT `name` FROM `guilds` WHERE `id` = ' . (int)$id);
-
-	if($guild->rowCount() > 0) {
-		return $guild->fetchColumn();
+	$guild = Guild::where('id', intval($id))->select('name')->first();
+	if ($guild) {
+		return $guild->name;
 	}
 
 	return false;
@@ -1597,15 +1613,11 @@ function getGuildNameById($id)
 
 function getGuildLogoById($id)
 {
-	global $db;
-
 	$logo = 'default.gif';
 
-	$query = $db->query('SELECT `logo_name` FROM `guilds` WHERE `id` = ' . (int)$id);
-	if ($query->rowCount() == 1) {
-
-		$query = $query->fetch(PDO::FETCH_ASSOC);
-		$guildLogo = $query['logo_name'];
+	$guild = Guild::where('id', intval($id))->select('logo_name')->first();
+	if ($guild) {
+		$guildLogo = $query->logo_name;
 
 		if (!empty($guildLogo) && file_exists(GUILD_IMAGES_DIR . $guildLogo)) {
 			$logo = $guildLogo;
