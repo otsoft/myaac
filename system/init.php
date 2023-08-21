@@ -17,7 +17,9 @@ use DebugBar\StandardDebugBar;
 
 if(config('env') === 'dev') {
 	require SYSTEM . 'exception.php';
+}
 
+if (config('env') === 'dev' || getBoolean(config('enable_debugbar'))) {
 	$debugBar = new StandardDebugBar();
 }
 
