@@ -9,6 +9,7 @@
  */
 defined('MYAAC') or die('Direct access not allowed!');
 
+use MyAAC\CsrfToken;
 use MyAAC\Models\Config;
 use MyAAC\Models\Guild;
 use MyAAC\Models\House;
@@ -43,7 +44,10 @@ function warning($message, $return = false) {
 	return message($message, 'warning', $return);
 }
 function note($message, $return = false) {
-	return message($message, 'note', $return);
+	return info($message, $return);
+}
+function info($message, $return = false) {
+	return message($message, 'info', $return);
 }
 function error($message, $return = false) {
 	return message($message, ((defined('MYAAC_INSTALL') || defined('MYAAC_ADMIN')) ? 'danger' : 'error'), $return);
@@ -151,8 +155,7 @@ function getItemImage($id, $count = 1)
 	if($count > 1)
 		$file_name .= '-' . $count;
 
-	global $config;
-	return '<img src="' . $config['item_images_url'] . $file_name . config('item_images_extension') . '"' . $tooltip . ' width="32" height="32" border="0" alt="' .$id . '" />';
+	return '<img src="' . setting('core.item_images_url') . $file_name . setting('core.item_images_extension') . '"' . $tooltip . ' width="32" height="32" border="0" alt="' .$id . '" />';
 }
 
 function getItemRarity($chance) {
@@ -500,8 +503,8 @@ function template_place_holder($type): string
  */
 function template_header($is_admin = false): string
 {
-	global $title_full, $config, $twig;
-	$charset = $config['charset'] ?? 'utf-8';
+	global $title_full, $twig;
+	$charset = setting('core.charset') ?? 'utf-8';
 
 	return $twig->render('templates.header.html.twig',
 		[
@@ -866,9 +869,6 @@ function _mail($to, $subject, $body, $altBody = '', $add_html_tags = true)
 	else
 		$tmp_body = $body . '<br/><br/>' . $signature_html;
 
-	define('MAIL_MAIL', 0);
-	define('MAIL_SMTP', 1);
-
 	$mailOption = setting('core.mail_option');
 	if($mailOption == MAIL_SMTP)
 	{
@@ -878,10 +878,6 @@ function _mail($to, $subject, $body, $altBody = '', $add_html_tags = true)
 		$mailer->SMTPAuth = setting('core.smtp_auth');
 		$mailer->Username = setting('core.smtp_user');
 		$mailer->Password = setting('core.smtp_pass');
-
-		define('SMTP_SECURITY_NONE', 0);
-		define('SMTP_SECURITY_SSL', 1);
-		define('SMTP_SECURITY_TLS', 2);
 
 		$security = setting('core.smtp_security');
 
@@ -1046,14 +1042,36 @@ function get_browser_real_ip() {
 	return '0';
 }
 function setSession($key, $data) {
-	$_SESSION[config('session_prefix') . $key] = $data;
+	$_SESSION[setting('core.session_prefix') . $key] = $data;
 }
 function getSession($key) {
-	$key = config('session_prefix') . $key;
+	$key = setting('core.session_prefix') . $key;
 	return isset($_SESSION[$key]) ? $_SESSION[$key] : false;
 }
 function unsetSession($key) {
-	unset($_SESSION[config('session_prefix') . $key]);
+	unset($_SESSION[setting('core.session_prefix') . $key]);
+}
+
+function csrf(): void {
+	CsrfToken::create();
+}
+
+function csrfToken(): string {
+	return CsrfToken::get();
+}
+
+function isValidToken(): bool {
+	$token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+	return ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($token) && CsrfToken::isValid($token)));
+}
+
+function csrfProtect(): void
+{
+	if (!isValidToken()) {
+		$lastUri = BASE_URL . str_replace_first('/', '', getSession('last_uri'));
+		echo 'Request has been cancelled due to security reasons - token is invalid. Go <a href="' . $lastUri . '">back</a>';
+		exit();
+	}
 }
 
 function getTopPlayers($limit = 5) {
@@ -1208,15 +1226,37 @@ function clearCache()
 		if ($cache->fetch('failed_logins', $tmp))
 			$cache->delete('failed_logins');
 
-		global $template_name;
-		if ($cache->fetch('template_ini' . $template_name, $tmp))
-			$cache->delete('template_ini' . $template_name);
+		foreach (get_templates() as $template) {
+			if ($cache->fetch('template_ini_' . $template, $tmp)) {
+				$cache->delete('template_ini_' . $template);
+			}
+		}
 
-		if ($cache->fetch('plugins_hooks', $tmp))
+		if ($cache->fetch('template_menus', $tmp)) {
+			$cache->delete('template_menus');
+		}
+		if ($cache->fetch('database_tables', $tmp)) {
+			$cache->delete('database_tables');
+		}
+		if ($cache->fetch('database_columns', $tmp)) {
+			$cache->delete('database_columns');
+		}
+		if ($cache->fetch('database_checksum', $tmp)) {
+			$cache->delete('database_checksum');
+		}
+		if ($cache->fetch('last_kills', $tmp)) {
+			$cache->delete('last_kills');
+		}
+
+		if ($cache->fetch('hooks', $tmp)) {
+			$cache->delete('hooks');
+		}
+		if ($cache->fetch('plugins_hooks', $tmp)) {
 			$cache->delete('plugins_hooks');
-
-		if ($cache->fetch('plugins_routes', $tmp))
+		}
+		if ($cache->fetch('plugins_routes', $tmp)) {
 			$cache->delete('plugins_routes');
+		}
 	}
 
 	deleteDirectory(CACHE . 'signatures', ['index.html'], true);
@@ -1280,7 +1320,7 @@ function getCustomPage($name, &$success): string
 			set_error_handler('error_handler');
 
 			global $config;
-			if($config['backward_support']) {
+			if(setting('core.backward_support')) {
 				global $SQL, $main_content, $subtopic;
 			}
 
@@ -1462,7 +1502,7 @@ function echo_success($message)
 function echo_error($message)
 {
 	global $error;
-	echo '<div class="col-12 alert alert-error mb-2">' . $message . '</div>';
+	echo '<div class="col-12 alert alert-danger mb-2">' . $message . '</div>';
 	$error = true;
 }
 
@@ -1537,8 +1577,8 @@ function right($str, $length) {
 }
 
 function getCreatureImgPath($creature){
-	$creature_path = config('monsters_images_url');
-	$creature_gfx_name = trim(strtolower($creature)) . config('monsters_images_extension');
+	$creature_path = setting('core.monsters_images_url');
+	$creature_gfx_name = trim(strtolower($creature)) . setting('core.monsters_images_extension');
 	if (!file_exists($creature_path . $creature_gfx_name)) {
 		$creature_gfx_name = str_replace(" ", "", $creature_gfx_name);
 		if (file_exists($creature_path . $creature_gfx_name)) {
@@ -1617,7 +1657,7 @@ function getGuildLogoById($id)
 
 	$guild = Guild::where('id', intval($id))->select('logo_name')->first();
 	if ($guild) {
-		$guildLogo = $query->logo_name;
+		$guildLogo = $guild->logo_name;
 
 		if (!empty($guildLogo) && file_exists(GUILD_IMAGES_DIR . $guildLogo)) {
 			$logo = $guildLogo;

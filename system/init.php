@@ -7,6 +7,9 @@
  * @copyright 2019 MyAAC
  * @link      https://my-aac.org
  */
+
+use MyAAC\CsrfToken;
+
 defined('MYAAC') or die('Direct access not allowed!');
 
 if(!isset($config['installed']) || !$config['installed']) {
@@ -38,6 +41,11 @@ if(isset($config['gzip_output']) && $config['gzip_output'] && isset($_SERVER['HT
 // cache
 require_once SYSTEM . 'libs/cache.php';
 $cache = Cache::getInstance();
+
+// event system
+require_once SYSTEM . 'hooks.php';
+$hooks = new Hooks();
+$hooks->load();
 
 // twig
 require_once SYSTEM . 'twig.php';
@@ -138,12 +146,23 @@ require_once LIBS . 'Settings.php';
 $settings = Settings::getInstance();
 $settings->load();
 
+// csrf protection
+$token = getSession('csrf_token');
+if (!isset($token) || !$token) {
+	CsrfToken::generate();
+}
+
 // deprecated config values
 require_once SYSTEM . 'compat/config.php';
 
 date_default_timezone_set(setting('core.date_timezone'));
 
-$config['account_create_character_create'] = config('account_create_character_create') && (!setting('core.mail_enabled') || !config('account_mail_verify'));
+setting(
+	[
+		'core.account_create_character_create',
+		setting('core.account_create_character_create') && (!setting('core.mail_enabled') || !setting('core.account_mail_verify'))
+	]
+);
 
 $settingsItemImagesURL = setting('core.item_images_url');
 if($settingsItemImagesURL[strlen($settingsItemImagesURL) - 1] !== '/') {

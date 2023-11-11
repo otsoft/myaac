@@ -65,6 +65,12 @@ return [
 			'default' => false,
 			'is_config' => true,
 		],
+		'csrf_protection' => [
+			'name' => 'CSRF protection',
+			'type' => 'boolean',
+			'desc' => 'Its recommended to keep it enabled. Disable only if you know what you are doing.',
+			'default' => true,
+		],
 		'google_analytics_id' => [
 			'name' => 'Google Analytics ID',
 			'type' => 'text',
@@ -1048,8 +1054,9 @@ Sent by MyAAC,<br/>
 			'default' => true,
 		],
 		'highscores_country_box' => [ // not implemented yet
+			'hidden' => true,
 			'name' => 'Display Country Box',
-			'type' => 'hidden',
+			'type' => 'boolean',
 			'desc' => 'Show player outfit?',
 			'default' => false,
 		],
@@ -1126,7 +1133,7 @@ Sent by MyAAC,<br/>
 			'name' => 'Display Quests',
 			'type' => 'boolean',
 			'desc' => 'Show characters quests. Can be configured below',
-			'default' => true,
+			'default' => false,
 		],
 		'quests' => [
 			'name' => 'Quests List',
@@ -1225,9 +1232,9 @@ Sent by MyAAC,<br/>
 		'team_style' => [
 			'name' => 'Style',
 			'type' => 'options',
-			'desc' => '',
-			'options' => ['normal table', 'in boxes, grouped by group id'],
-			'default' => 1,
+			'desc' => 'How to show groups',
+			'options' => [1 => 'normal table', 2 => 'in boxes, grouped by group id'],
+			'default' => 2,
 		],
 		'team_status' => [
 			'name' => 'Display Online Status',
@@ -1602,7 +1609,7 @@ Sent by MyAAC,<br/>
 					if ($key == 'server_path') {
 						$server_path = $values[$key];
 					}
-					elseif (strpos($key, 'database_') !== false) {
+					elseif (str_contains($key, 'database_')) {
 						$database[$key] = $values[$key];
 					}
 

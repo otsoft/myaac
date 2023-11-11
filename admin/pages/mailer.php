@@ -10,6 +10,8 @@
 defined('MYAAC') or die('Direct access not allowed!');
 $title = 'Mailer';
 
+csrfProtect();
+
 if (!hasFlag(FLAG_CONTENT_MAILER) && !superAdmin()) {
 	echo 'Access denied.';
 	return;
@@ -20,7 +22,7 @@ if (!setting('core.mail_enabled')) {
 	return;
 }
 
-$mail_to = isset($_REQUEST['mail_to']) ? stripslashes(trim($_REQUEST['mail_to'])) : null;
+$mail_to = isset($_POST['mail_to']) ? stripslashes(trim($_POST['mail_to'])) : null;
 $mail_subject = isset($_POST['mail_subject']) ? stripslashes($_POST['mail_subject']) : null;
 $mail_content = isset($_POST['mail_content']) ? stripslashes($_POST['mail_content']) : null;
 
@@ -54,7 +56,7 @@ if (!empty($mail_content) && !empty($mail_subject) && empty($mail_to)) {
 	$failed = 0;
 
 	$add = '';
-	if (config('account_mail_verify')) {
+	if (setting('core.account_mail_verify')) {
 		note('Note: Sending only to users with verified E-Mail.');
 		$add = ' AND `email_verified` = 1';
 	}

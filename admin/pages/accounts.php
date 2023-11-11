@@ -13,10 +13,13 @@ use MyAAC\Models\Player;
 defined('MYAAC') or die('Direct access not allowed!');
 
 $title = 'Account editor';
+
+csrfProtect();
+
 $admin_base = ADMIN_URL . '?p=accounts';
 $use_datatable = true;
 
-if ($config['account_country'])
+if (setting('core.account_country'))
 	require SYSTEM . 'countries.conf.php';
 
 $nameOrNumberColumn = 'name';
@@ -30,7 +33,7 @@ $hasPointsColumn = $db->hasColumn('accounts', 'premium_points');
 $hasTypeColumn = $db->hasColumn('accounts', 'type');
 $hasGroupColumn = $db->hasColumn('accounts', 'group_id');
 
-if ($config['account_country']) {
+if (setting('core.account_country')) {
 	$countries = array();
 	foreach (array('pl', 'se', 'br', 'us', 'gb') as $c)
 		$countries[$c] = $config['countries'][$c];
@@ -82,7 +85,7 @@ else if (isset($_REQUEST['search'])) {
 		$account = new OTS_Account();
 		$account->load($id);
 
-		if (isset($account, $_POST['save']) && $account->isLoaded()) {
+		if (isset($_POST['save']) && $account->isLoaded()) {
 			$error = false;
 
 			$_error = '';
@@ -267,6 +270,9 @@ else if (isset($_REQUEST['search'])) {
 							<a class="nav-link active" id="accounts-acc-tab" data-toggle="pill" href="#accounts-acc">Account</a>
 						</li>
 						<li class="nav-item">
+							<a class="nav-link" id="accounts-logs-tab" data-toggle="pill" href="#accounts-logs">Logs</a>
+						</li>
+						<li class="nav-item">
 							<a class="nav-link" id="accounts-chars-tab" data-toggle="pill" href="#accounts-chars">Characters</a>
 						</li>
 						<?php if ($db->hasTable('bans')) : ?>
@@ -286,6 +292,7 @@ else if (isset($_REQUEST['search'])) {
 					<div class="tab-content" id="accounts-tabContent">
 						<div class="tab-pane fade active show" id="accounts-acc">
 							<form action="<?php echo $admin_base . ((isset($id) && $id > 0) ? '&id=' . $id : ''); ?>" method="post">
+								<?php csrf(); ?>
 								<div class="form-group row">
 									<?php if (USE_ACCOUNT_NAME): ?>
 										<div class="col-12 col-sm-12 col-lg-4">
@@ -324,8 +331,8 @@ else if (isset($_REQUEST['search'])) {
 										<div class="col-12 col-sm-12 col-lg-6">
 											<label for="group">Account Type:</label>
 											<select name="group" id="group" class="form-control">
-												<?php foreach ($acc_type as $id => $a_type): ?>
-													<option value="<?php echo($id); ?>" <?php echo($acc_group == ($id) ? 'selected' : ''); ?>><?php echo $a_type; ?></option>
+												<?php foreach ($acc_type as $_id => $a_type): ?>
+													<option value="<?php echo($_id); ?>" <?php echo($acc_group == ($_id) ? 'selected' : ''); ?>><?php echo $a_type; ?></option>
 												<?php endforeach; ?>
 											</select>
 										</div>
@@ -335,8 +342,8 @@ else if (isset($_REQUEST['search'])) {
 										<div class="col-12 col-sm-12 col-lg-6">
 											<label for="group">Account Type:</label>
 											<select name="group" id="group" class="form-control">
-												<?php foreach ($groups->getGroups() as $id => $group): ?>
-													<option value="<?php echo $id; ?>" <?php echo($acc_group == $id ? 'selected' : ''); ?>><?php echo $group->getName(); ?></option>
+												<?php foreach ($groups->getGroups() as $_id => $group): ?>
+													<option value="<?php echo $_id; ?>" <?php echo($acc_group == $_id ? 'selected' : ''); ?>><?php echo $group->getName(); ?></option>
 												<?php endforeach; ?>
 											</select>
 										</div>
@@ -344,8 +351,8 @@ else if (isset($_REQUEST['search'])) {
 									<div class="col-12 col-sm-12 col-lg-6">
 										<label for="web_flags">Website Access:</label>
 										<select name="web_flags" id="web_flags" class="form-control">
-											<?php foreach ($web_acc as $id => $a_type): ?>
-												<option value="<?php echo($id); ?>" <?php echo($account->getWebFlags() == ($id) ? 'selected' : ''); ?>><?php echo $a_type; ?></option>
+											<?php foreach ($web_acc as $_id => $a_type): ?>
+												<option value="<?php echo($_id); ?>" <?php echo($account->getWebFlags() == ($_id) ? 'selected' : ''); ?>><?php echo $a_type; ?></option>
 											<?php endforeach; ?>
 										</select>
 									</div>
@@ -400,8 +407,8 @@ else if (isset($_REQUEST['search'])) {
 									<div class="col-12 col-sm-12 col-lg-4">
 										<label for="rl_country">Country:</label>
 										<select name="rl_country" id="rl_country" class="form-control">
-											<?php foreach ($countries as $id => $a_type): ?>
-												<option value="<?php echo($id); ?>" <?php echo($account->getCountry() == ($id) ? 'selected' : ''); ?>><?php echo $a_type; ?></option>
+											<?php foreach ($countries as $_id => $a_type): ?>
+												<option value="<?php echo($_id); ?>" <?php echo($account->getCountry() == ($_id) ? 'selected' : ''); ?>><?php echo $a_type; ?></option>
 											<?php endforeach; ?>
 										</select>
 									</div>
@@ -422,6 +429,34 @@ else if (isset($_REQUEST['search'])) {
 								<button type="submit" class="btn btn-info"><i class="fas fa-update"></i> Update</button>
 								<a href="<?php echo ADMIN_URL; ?>?p=accounts" class="btn btn-danger float-right"><i class="fas fa-cancel"></i> Cancel</a>
 							</form>
+						</div>
+						<div class="tab-pane fade" id="accounts-logs">
+							<div class="row">
+								<table class="table table-striped table-condensed table-responsive d-md-table">
+									<thead>
+										<tr>
+											<th>#</th>
+											<th>Date</th>
+											<th>Action</th>
+											<th>IP</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php
+											$accountActions = \MyAAC\Models\AccountAction::where('account_id', $account->getId())->orderByDesc('date')->get();
+											foreach ($accountActions as $i => $log):
+												$log->ip = ($log->ip != 0 ? long2ip($log->ip) : inet_ntop($log->ipv6));
+												?>
+											<tr>
+												<td><?php echo $i + 1; ?></td>
+												<td><?= date("M d Y, H:i:s", $log->date); ?></td>
+												<td><?= $log->action; ?></td>
+												<td><?= $log->ip; ?></td>
+											</tr>
+											<?php endforeach; ?>
+									</tbody>
+								</table>
+							</div>
 						</div>
 						<div class="tab-pane fade" id="accounts-chars">
 							<div class="row">
@@ -550,18 +585,20 @@ else if (isset($_REQUEST['search'])) {
 				<div class="row">
 					<div class="col-6 col-lg-12">
 						<form action="<?php echo $admin_base; ?>" method="post">
-							<label for="name">Account Name:</label>
+							<?php csrf(); ?>
+							<label for="search">Account Name:</label>
 							<div class="input-group input-group-sm">
-								<input type="text" class="form-control" name="search" value="<?php echo $search_account; ?>" maxlength="32" size="32">
+								<input type="text" class="form-control" id="search" name="search" value="<?= escapeHtml($search_account); ?>" maxlength="32" size="32">
 								<span class="input-group-append"><button type="submit" class="btn btn-info btn-flat">Search</button></span>
 							</div>
 						</form>
 					</div>
 					<div class="col-6 col-lg-12">
 						<form action="<?php echo $admin_base; ?>" method="post">
-							<label for="name">Account ID:</label>
+							<?php csrf(); ?>
+							<label for="id">Account ID:</label>
 							<div class="input-group input-group-sm">
-								<input type="text" class="form-control" name="id" value="" maxlength="32" size="32">
+								<input type="text" class="form-control" id="id" name="id" value="<?= $id; ?>" maxlength="32" size="32">
 								<span class="input-group-append"><button type="submit" class="btn btn-info btn-flat">Search</button></span>
 							</div>
 						</form>

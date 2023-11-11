@@ -28,7 +28,7 @@ if(isset($config['boxes']))
 		<?php
 			if(PAGE !== 'news') {
 				if(isset($_REQUEST['subtopic'])) {
-					$tmp = $_REQUEST['subtopic'];
+					$tmp = escapeHtml($_REQUEST['subtopic']);
 					if($tmp === 'accountmanagement') {
 						$tmp = 'accountmanage';
 					}
@@ -123,8 +123,8 @@ if(isset($config['boxes']))
 		  document.getElementById("submenu_"+activeSubmenuItem).style.color = "white";
 		  document.getElementById("ActiveSubmenuItemIcon_"+activeSubmenuItem).style.visibility = "visible";
 		  menus = localStorage.getItem('menus');
-		  if(menus.lastIndexOf("&") === -1) {
-			  menus = "news=1&account=0&community=0&library=0&forum=0<?php if($config['gifts_system']) echo '&shops=0'; ?>&";
+		  if(menus == null || menus.lastIndexOf("&") === -1) {
+			  menus = "news=1&account=0&community=0&library=0&forum=0<?php if (setting('core.gifts_system')) echo '&shops=0'; ?>&";
 		  }
 		  FillMenuArray();
 		  InitializeMenu();
@@ -329,7 +329,7 @@ if(isset($config['boxes']))
 $menus = get_template_menus();
 
 foreach($config['menu_categories'] as $id => $cat) {
-	if(!isset($menus[$id]) || ($id == MENU_CATEGORY_SHOP && !$config['gifts_system'])) {
+	if(!isset($menus[$id]) || ($id == MENU_CATEGORY_SHOP && !setting('core.gifts_system'))) {
 		continue;
 	}
 	?>
@@ -368,7 +368,7 @@ foreach($config['menu_categories'] as $id => $cat) {
 	?>
 	</div>
 	<?php
-	if($id == MENU_CATEGORY_SHOP || (!$config['gifts_system'] && $id == MENU_CATEGORY_SHOP - 1)) {
+	if($id == MENU_CATEGORY_SHOP || (!setting('core.gifts_system') && $id == MENU_CATEGORY_SHOP - 1)) {
 	?>
 		<div id='MenuBottom' style='background-image:url(<?php echo $template_path; ?>/images/general/box-bottom.gif);'></div>
 	<?php

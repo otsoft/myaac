@@ -170,7 +170,7 @@ if(!empty($page) && preg_match('/^[A-z0-9\-]+$/', $page)) {
 		$_REQUEST['subtopic'] = $_REQUEST['p'];
 	}
 
-	if (config('backward_support')) {
+	if (setting('core.backward_support')) {
 		require SYSTEM . 'compat/pages.php';
 	}
 
@@ -220,9 +220,8 @@ else {
 					$content .= $tmp_content;
 					if (hasFlag(FLAG_CONTENT_PAGES) || superAdmin()) {
 						$pageInfo = getCustomPageInfo($pageName);
-						$content = $twig->render('admin.pages.links.html.twig', array(
-								'page' => array('id' => $pageInfo !== null ? $pageInfo['id'] : 0, 'hidden' => $pageInfo !== null ? $pageInfo['hidden'] : '0')
-							)) . $content;
+						$content = $twig->render('admin.links.html.twig', ['page' => 'pages', 'id' => $pageInfo !== null ? $pageInfo['id'] : 0, 'hidden' => $pageInfo !== null ? $pageInfo['hidden'] : '0']
+							) . $content;
 					}
 
 					$page = $pageName;
@@ -271,7 +270,7 @@ if($hooks->trigger(HOOK_BEFORE_PAGE)) {
 
 unset($file);
 
-if(config('backward_support') && isset($main_content[0]))
+if(setting('core.backward_support') && isset($main_content[0]))
 	$content .= $main_content;
 
 $content .= ob_get_contents();
@@ -282,7 +281,7 @@ if(!isset($title)) {
 	$title = ucfirst($page);
 }
 
-if(config('backward_support')) {
+if(setting('core.backward_support')) {
 	$main_content = $content;
 	$topic = $title;
 }

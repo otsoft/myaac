@@ -2,11 +2,12 @@ Please choose a name{% if config.character_samples|length > 1 %}, vocation{% end
 {% if config.character_towns|length > 1 %}, town{% endif %}
  and sex for your character. <br/>
 In any case the name must not violate the naming conventions stated in the <a href="?subtopic=rules" target="_blank" >{{ config.lua.serverName }} Rules</a>, or your character might get deleted or name locked.
-{% if account_logged.getPlayersList(true)|length >= config.characters_per_account %}
+{% if account_logged.getPlayersList(true)|length >= setting('core.characters_per_account') %}
 <b><span style="color: red"> You have maximum number of characters per account on your account. Delete one before you make new.</span></b>
 {% endif %}
 <br/><br/>
 <form action="{{ getLink('account/character/create') }}" method="post">
+	{{ csrf() }}
 	<input type="hidden" name="save" value="1">
 	<div class="TableContainer">
 		<table class="Table3" cellpadding="0" cellspacing="0">
@@ -135,6 +136,7 @@ In any case the name must not violate the naming conventions stated in the <a hr
 			<td>
 				<table border="0" cellspacing="0" cellpadding="0">
 					<form action="{{ getLink('account/manage') }}" method="post">
+						{{ csrf() }}
 						<tr>
 							<td style="border:0px;">
 								{{ include('buttons.back.html.twig') }}
