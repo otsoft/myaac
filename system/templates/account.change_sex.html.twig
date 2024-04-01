@@ -2,10 +2,11 @@ To change a sex of character select player and choose a new sex.<br/>
 <span style="color: red">Change sex cost {{ setting('core.account_change_character_sex_price') }} {{ setting('core.donate_column') == 'coins' ? 'coins' : 'premium points' }}. You have {{ points }} {{ setting('core.donate_column') == 'coins' ? 'coins' : 'premium points' }}.</span>
 <br/><br/>
 {% set title = 'Change sex' %}
+{% set background = config('darkborder') %}
 {% set content %}
 <table style="width:100%;" >
 	<tr>
-		<td class="LabelV" ><span >Character:</td>
+		<td class="LabelV" ><span>Character:</span></td>
 		<td style="width:90%;" >
 			<select form="form" name="player_id">
 				{% for player in players %}
@@ -15,7 +16,7 @@ To change a sex of character select player and choose a new sex.<br/>
 		</td>
 	</tr>
 	<tr>
-		<td class="LabelV" ><span >New Sex:</td>
+		<td class="LabelV" ><span>New Sex:</span></td>
 		<td>
 			<select form="form" name="new_sex">
 				{% for id, gender in config.genders %}
